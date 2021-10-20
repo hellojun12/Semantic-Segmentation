@@ -186,3 +186,4 @@ input/
 *.pt
 *.out
 saved/
+configs/
