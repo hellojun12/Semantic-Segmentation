@@ -184,3 +184,5 @@ input/
 ._.DS_Store
 .empty/
 *.pt
+*.out
+saved/
