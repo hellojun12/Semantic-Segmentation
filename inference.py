@@ -1,3 +1,6 @@
+import argparse
+from configparser import ConfigParser
+from importlib import import_module
 import torch
 import pandas as pd
 import albumentations as A
@@ -10,13 +13,19 @@ from dataset import CustomDataLoader
 from utils import collate_fn
 
 
-def inference():
-    dataset_path = './input/data'
+
+def inference(config, model_dir):
+    dataset_path = config.get('path', 'dataset_path')
     test_path = os.path.join(dataset_path,'test.json')
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = smp.DeepLabV3Plus(
-        encoder_name="resnet34", 
-        encoder_weights="imagenet",
+    encoder_name = config.get('model','encoder_name')
+    encoder_weight = config.get('model','encoder_weight')
+    architecture = config.get('model','architecture')
+    model = getattr(import_module("segmentation_models_pytorch"),architecture) 
+
+    model = model(
+        encoder_name=encoder_name, 
+        encoder_weights=encoder_weight,
         in_channels=3,
         classes=11
     )
@@ -28,7 +37,7 @@ def inference():
                                           batch_size=16,
                                           num_workers=4,
                                           collate_fn=collate_fn)
-    model_path = './saved/best_mIoU.pt'
+    model_path = model_dir
     checkpoint = torch.load(model_path, map_location=device)
     state_dict = checkpoint.state_dict()
     model.load_state_dict(state_dict)
@@ -77,7 +86,25 @@ def inference():
 
 
 if __name__ == '__main__':
-    inference()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config_dir",
+        type=str,
+        default='./configs/config.ini'
+    )
+    parser.add_argument(
+        "--model_dir",
+        type=str,
+        default=None
+    )
+    
+    args = parser.parse_args()
+    model_dir = args.model_dir
+    if model_dir is None:
+        raise NameError('set model directory path')
+    config = ConfigParser()
+    config.read(args.config_dir)
+    inference(config, model_dir)
 
     
    

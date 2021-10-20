@@ -1,4 +1,9 @@
 import numpy as np
+from pathlib import Path
+import os
+import glob
+import random
+import re
 
 def _fast_hist(label_true, label_pred, n_class):
     mask = (label_true >= 0) & (label_true < n_class)
@@ -51,3 +56,15 @@ def _fast_hist(label_true, label_pred, n_class):
 
 def collate_fn(batch):
     return tuple(zip(*batch))
+
+def get_save_dir(saved_dir, dump=False):
+
+    saved_dir = Path(saved_dir)
+    if not saved_dir.exists() or dump:
+        return str(saved_dir)
+    else:
+        dirs = glob.glob(f'{saved_dir}*')
+        matches = [re.search(rf'{saved_dir.stem}(\d+)', d) for d in dirs]
+        i = [int(m.groups()[0]) for m in matches if m]
+        n = max(i) + 1 if i else 2
+        return f"{saved_dir}{n}"

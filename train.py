@@ -2,10 +2,13 @@ import os.path as osp
 import os
 import random
 import warnings 
+from importlib import import_module
 warnings.filterwarnings('ignore')
 
 import torch
 import torch.nn as nn
+import argparse
+from configparser import ConfigParser
 from torch.utils.data import Dataset, DataLoader, dataset
 from utils import label_accuracy_score, add_hist
 import cv2
@@ -27,14 +30,16 @@ from dataset import CustomDataLoader
 from transformer import get_preprocessing, get_training_augmentation, get_validation_augmentation
 
 from trainer import Trainer
-from utils import collate_fn
+from utils import collate_fn, get_save_dir
 
-def main():
+def main(config):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    batch_size = 16
-    num_epochs = 1
-    learning_rate = 0.0001
-    random_seed = 21
+    batch_size = config.getint('hyper_params', 'batch_size')
+    num_epochs = config.getint('hyper_params', 'num_epochs')
+    learning_rate = config.getfloat('hyper_params', 'learning_rate')
+    random_seed = config.getint('hyper_params', 'random_seed')
+    val_every = config.getint('hyper_params', 'val_every')
+
     torch.manual_seed(random_seed)
     torch.cuda.manual_seed(random_seed)
     torch.cuda.manual_seed_all(random_seed) # if use multi-GPU
@@ -42,21 +47,23 @@ def main():
     torch.backends.cudnn.benchmark = False
     np.random.seed(random_seed)
     random.seed(random_seed)
-    dataset_path = './input/data'
-    anns_file_path = dataset_path + '/' + 'train_all.json'
+
+    dataset_path = config.get('path', 'dataset_path')
 
     train_path = osp.join(dataset_path, 'train.json')
+    train_all_path = osp.join(dataset_path, 'train_all.json')
     val_path = osp.join(dataset_path, 'val.json')
-    test_path = osp.join(dataset_path, 'test.json')
 
     train_transform = A.Compose([ ToTensorV2()])
     val_transform = A.Compose([ ToTensorV2()])
-    test_transform = A.Compose([ ToTensorV2()])
-    preprocessing_fn = smp.encoders.get_preprocessing_fn("resnet34", 'imagenet')
 
-    train_dataset = CustomDataLoader(data_dir=train_path, mode='train', transform=get_training_augmentation(), preprocessing=get_preprocessing(preprocessing_fn))
+    encoder_name = config.get('model', 'encoder_name')
+    encoder_weight = config.get('model', 'encoder_weight')
+
+    preprocessing_fn = smp.encoders.get_preprocessing_fn(encoder_name, encoder_weight)
+
+    train_dataset = CustomDataLoader(data_dir=train_path if val_every != 0 else train_all_path, mode='train', transform=get_training_augmentation(), preprocessing=get_preprocessing(preprocessing_fn))
     val_dataset = CustomDataLoader(data_dir=val_path, mode='val', transform=get_validation_augmentation() , preprocessing=get_preprocessing(preprocessing_fn))
-    test_dataset = CustomDataLoader(data_dir=test_path, mode='test', transform=test_transform)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, 
                                            batch_size=batch_size,
@@ -72,20 +79,17 @@ def main():
                                          collate_fn=collate_fn
                                          )
 
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                          batch_size=batch_size,
-                                          num_workers=4,
-                                          collate_fn=collate_fn)
+    architecture = config.get('model','architecture')
+    model = getattr(import_module("segmentation_models_pytorch"),architecture) 
 
-    model = smp.DeepLabV3Plus(
-        encoder_name="resnet34", 
-        encoder_weights="imagenet",
+    model = model(
+        encoder_name=encoder_name, 
+        encoder_weights=encoder_weight,
         in_channels=3,
         classes=11
     )
 
-    val_every = 1
-    saved_dir = './saved'
+    saved_dir = get_save_dir(config.get('path','saved_dir'))
     if not osp.isdir(saved_dir):
         os.mkdir(saved_dir)
         
@@ -97,4 +101,14 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config_dir",
+        type=str,
+        default="./configs/config.ini"
+    )
+    args = parser.parse_args()
+    config = ConfigParser()
+    config.read(args.config_dir)
+
+    main(config)
