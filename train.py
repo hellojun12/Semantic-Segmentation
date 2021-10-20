@@ -31,6 +31,8 @@ from transformer import get_preprocessing, get_training_augmentation, get_valida
 
 from trainer import Trainer
 from utils import collate_fn, get_save_dir
+from optimizer import get_optimizer, get_scheduler
+
 
 def main(config):
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -39,6 +41,7 @@ def main(config):
     learning_rate = config.getfloat('hyper_params', 'learning_rate')
     random_seed = config.getint('hyper_params', 'random_seed')
     val_every = config.getint('hyper_params', 'val_every')
+    weight_decay = config.getfloat('hyper_params','weight_decay')
 
     torch.manual_seed(random_seed)
     torch.cuda.manual_seed(random_seed)
@@ -94,7 +97,8 @@ def main(config):
         os.mkdir(saved_dir)
         
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(params = model.parameters(), lr = learning_rate, weight_decay=1e-6)
+    optimizer = get_optimizer(model, config.get('hyper_params','optimizer'), lr=learning_rate, weight_decay=weight_decay)
+    # optimizer = optimizer(params = model.parameters(), lr = learning_rate, weight_decay=weight_decay)
     
     trainer = Trainer(num_epochs, model, train_loader, val_loader, criterion, optimizer, saved_dir, val_every, device)
     trainer.train()

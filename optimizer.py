@@ -1,7 +1,7 @@
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 
-def get_optimizer(model, optimizer_name, lr=1e-3, momentum=0.9, weight_decay=5e-4):
+def get_optimizer(model, optimizer_name, lr=1e-4, momentum=0.9, weight_decay=5e-4):
     if optimizer_name.lower() == "adam":
         return optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     elif optimizer_name.lower() == "momentum":
