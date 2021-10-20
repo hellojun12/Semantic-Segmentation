@@ -37,14 +37,15 @@ class Trainer(object):
             'valid/fwavacc'
         ]
 
-        if not osp.exists(osp.join(self.saved_dir, 'log.csv')):
-            with open(osp.join(self.saved_dir, 'log.csv'),'w') as f:
-                f.write(','.join(self.log_headers) +'\n')
+        with open(osp.join(self.saved_dir, 'log.csv'),'w') as f:
+            f.write(','.join(self.log_headers) +'\n')
         
 
     def train(self):
         print('Start training..')
         model = self.model
+        best_loss = 9999999
+        best_mIoU = 0.0
 
         for epoch in range(self.num_epochs):
             model.train()
@@ -73,13 +74,14 @@ class Trainer(object):
                 acc, acc_cls, mIoU, fwavacc, _ = label_accuracy_score(hist)
                 metrics.append((acc, acc_cls, mIoU, fwavacc))
                 metrics = np.mean(metrics, axis=0)
+                metrics = list(map(lambda x : round(x,4), metrics))
                 
                 if (step + 1) % 25 == 0:
-                    print(f'Epoch [{epoch+1}/{self.num_epochs}], Step [{step+1}/{len(self.train_loader)}], \
+                    print(f'Epoch [{epoch+1}/{self.num_epochs}], Step [{step+1}/{len(self.data_loader)}], \
                         Loss: {round(loss.item(),4)}, mIoU: {round(mIoU,4)}')
                     with open(osp.join(self.saved_dir,'log.csv'),'a') as f:
                         log = [epoch + 1, step+1] + [round(loss.item(),4)] + \
-                            metrics.tolist() + [''] * 5 
+                            metrics + [''] * 5 
                         log = map(str,log)
                         f.write(','.join(log) + '\n')
             if self.val_every != 0:
@@ -87,14 +89,14 @@ class Trainer(object):
                     avrg_loss, avrg_mIoU = self._validation(epoch + 1, model)
                     if avrg_mIoU > best_mIoU:
                         print(f"Best performance at epoch: {epoch + 1}")
-                        print(f"Save model in {saved_dir}")
+                        print(f"Save model in {self.saved_dir}")
                         best_mIoU = avrg_mIoU
                         check_point = {'net': model.state_dict()}
                         output_path = osp.join(self.saved_dir, 'best_mIoU.pt')
                         torch.save(model, output_path)
                     if avrg_loss < best_loss:
                         print(f"Best performance at epoch: {epoch + 1}")
-                        print(f"Save model in {saved_dir}")
+                        print(f"Save model in {self.saved_dir}")
                         best_loss = avrg_loss
                         check_point = {'net': model.state_dict()}
                         output_path = osp.join(self.saved_dir, 'best_loss.pt')
@@ -132,6 +134,7 @@ class Trainer(object):
 
             acc, acc_cls, mIoU, fwavacc, IoU = label_accuracy_score(hist)
             metrics = [acc, acc_cls, mIoU, fwavacc]
+            metrics = list(map(lambda x: round(x,4), metrics))
             IoU_by_class = [{classes : round(IoU,4)} for IoU, classes in zip(IoU, category_names)]
 
             avrg_loss = total_loss /cnt
@@ -139,8 +142,8 @@ class Trainer(object):
                     mIoU: {round(mIoU, 4)}')
             print(f'IoU by class : {IoU_by_class}')
             with open(osp.join(self.saved_dir, 'log.csv'),'a') as f:
-                log = [epoch, step+1] + [''] * 5 + \
-                    [avrg_loss] + metrics 
+                log = [epoch, 'Val'] + [''] * 5 + \
+                    [round(avrg_loss.item(),4)] + metrics 
                 log = map(str, log)
                 f.write(','.join(log) + '\n')
         return avrg_loss, round(mIoU, 4)

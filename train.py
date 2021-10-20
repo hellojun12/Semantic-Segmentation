@@ -1,8 +1,6 @@
 import os.path as osp
 import os
 import random
-import time
-import json
 import warnings 
 warnings.filterwarnings('ignore')
 
@@ -29,11 +27,12 @@ from dataset import CustomDataLoader
 from transformer import get_preprocessing, get_training_augmentation, get_validation_augmentation
 
 from trainer import Trainer
+from utils import collate_fn
 
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    batch_size = 7
-    num_epochs = 40
+    batch_size = 16
+    num_epochs = 1
     learning_rate = 0.0001
     random_seed = 21
     torch.manual_seed(random_seed)
@@ -53,14 +52,11 @@ def main():
     train_transform = A.Compose([ ToTensorV2()])
     val_transform = A.Compose([ ToTensorV2()])
     test_transform = A.Compose([ ToTensorV2()])
-    preprocessing_fn = smp.encoders.get_preprocessing_fn('efficientnet-b7', 'imagenet')
+    preprocessing_fn = smp.encoders.get_preprocessing_fn("resnet34", 'imagenet')
 
     train_dataset = CustomDataLoader(data_dir=train_path, mode='train', transform=get_training_augmentation(), preprocessing=get_preprocessing(preprocessing_fn))
     val_dataset = CustomDataLoader(data_dir=val_path, mode='val', transform=get_validation_augmentation() , preprocessing=get_preprocessing(preprocessing_fn))
     test_dataset = CustomDataLoader(data_dir=test_path, mode='test', transform=test_transform)
-
-    def collate_fn(batch):
-        return tuple(zip(*batch))
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, 
                                            batch_size=batch_size,
@@ -82,10 +78,10 @@ def main():
                                           collate_fn=collate_fn)
 
     model = smp.DeepLabV3Plus(
-    encoder_name="efficientnet-b7", 
-    encoder_weights="imagenet",
-    in_channels=3,
-    classes=11
+        encoder_name="resnet34", 
+        encoder_weights="imagenet",
+        in_channels=3,
+        classes=11
     )
 
     val_every = 1
@@ -98,6 +94,7 @@ def main():
     
     trainer = Trainer(num_epochs, model, train_loader, val_loader, criterion, optimizer, saved_dir, val_every, device)
     trainer.train()
+
 
 if __name__ == '__main__':
     main()
