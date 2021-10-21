@@ -43,6 +43,8 @@ def main(config):
     val_every = config.getint('hyper_params', 'val_every')
     weight_decay = config.getfloat('hyper_params','weight_decay')
     momentum = config.getfloat('hyper_params', 'momentum')
+    num_workers = config.getint('hyper_params', 'num_workers')
+    preprocessing = config.getboolean('hyper_params', 'preprocessing')
 
     torch.manual_seed(random_seed)
     torch.cuda.manual_seed(random_seed)
@@ -66,20 +68,20 @@ def main(config):
 
     preprocessing_fn = smp.encoders.get_preprocessing_fn(encoder_name, encoder_weight)
 
-    train_dataset = CustomDataLoader(data_dir=train_path if val_every != 0 else train_all_path, mode='train', transform=train_transform, preprocessing=get_preprocessing(preprocessing_fn))
-    val_dataset = CustomDataLoader(data_dir=val_path, mode='val', transform=val_transform , preprocessing=get_preprocessing(preprocessing_fn))
+    train_dataset = CustomDataLoader(data_dir=train_path if val_every != 0 else train_all_path, mode='train', transform=train_transform, preprocessing=get_preprocessing(preprocessing_fn) if preprocessing else False)
+    val_dataset = CustomDataLoader(data_dir=val_path, mode='val', transform=val_transform , preprocessing=get_preprocessing(preprocessing_fn) if preprocessing else False)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, 
                                            batch_size=batch_size,
                                            shuffle=True,
-                                           num_workers=4,
+                                           num_workers=num_workers,
                                            collate_fn=collate_fn
                                            )
 
     val_loader = torch.utils.data.DataLoader(dataset=val_dataset, 
                                          batch_size=batch_size,
                                          shuffle=False,
-                                         num_workers=4,
+                                         num_workers=num_workers,
                                          collate_fn=collate_fn
                                          )
 
