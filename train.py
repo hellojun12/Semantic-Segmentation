@@ -27,7 +27,7 @@ from albumentations.pytorch import ToTensorV2
 import segmentation_models_pytorch as smp
 
 from dataset import CustomDataLoader
-from transformer import get_preprocessing, get_training_augmentation, get_validation_augmentation
+from augmentation import get_preprocessing, get_training_augmentation, get_validation_augmentation
 
 from trainer import Trainer
 from utils import collate_fn, get_save_dir
@@ -42,6 +42,7 @@ def main(config):
     random_seed = config.getint('hyper_params', 'random_seed')
     val_every = config.getint('hyper_params', 'val_every')
     weight_decay = config.getfloat('hyper_params','weight_decay')
+    momentum = config.getfloat('hyper_params', 'momentum')
 
     torch.manual_seed(random_seed)
     torch.cuda.manual_seed(random_seed)
@@ -57,16 +58,16 @@ def main(config):
     train_all_path = osp.join(dataset_path, 'train_all.json')
     val_path = osp.join(dataset_path, 'val.json')
 
-    train_transform = A.Compose([ ToTensorV2()])
-    val_transform = A.Compose([ ToTensorV2()])
+    train_transform = get_training_augmentation()
+    val_transform = get_validation_augmentation()
 
     encoder_name = config.get('model', 'encoder_name')
     encoder_weight = config.get('model', 'encoder_weight')
 
     preprocessing_fn = smp.encoders.get_preprocessing_fn(encoder_name, encoder_weight)
 
-    train_dataset = CustomDataLoader(data_dir=train_path if val_every != 0 else train_all_path, mode='train', transform=get_training_augmentation(), preprocessing=get_preprocessing(preprocessing_fn))
-    val_dataset = CustomDataLoader(data_dir=val_path, mode='val', transform=get_validation_augmentation() , preprocessing=get_preprocessing(preprocessing_fn))
+    train_dataset = CustomDataLoader(data_dir=train_path if val_every != 0 else train_all_path, mode='train', transform=train_transform, preprocessing=get_preprocessing(preprocessing_fn))
+    val_dataset = CustomDataLoader(data_dir=val_path, mode='val', transform=val_transform , preprocessing=get_preprocessing(preprocessing_fn))
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, 
                                            batch_size=batch_size,
@@ -97,7 +98,7 @@ def main(config):
         os.mkdir(saved_dir)
         
     criterion = nn.CrossEntropyLoss()
-    optimizer = get_optimizer(model, config.get('hyper_params','optimizer'), lr=learning_rate, weight_decay=weight_decay)
+    optimizer = get_optimizer(model, config.get('hyper_params','optimizer'), lr=learning_rate,momentum=momentum, weight_decay=weight_decay)
     # optimizer = optimizer(params = model.parameters(), lr = learning_rate, weight_decay=weight_decay)
     
     trainer = Trainer(num_epochs, model, train_loader, val_loader, criterion, optimizer, saved_dir, val_every, device)
