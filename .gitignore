@@ -187,3 +187,4 @@ input/
 *.out
 saved/
 configs/
+augmentation/
