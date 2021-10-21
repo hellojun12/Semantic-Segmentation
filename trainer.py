@@ -2,12 +2,14 @@ import numpy as np
 import torch
 from torch.cuda import device_count
 import os.path as osp
+import wandb
+from wandb_img import wb_mask
 
 from utils import label_accuracy_score, add_hist
 
 class Trainer(object):
 
-    def __init__(self, num_epochs, model, data_loader, val_loader, criterion, optimizer, saved_dir, val_every, device):
+    def __init__(self, num_epochs, model, data_loader, val_loader, criterion, optimizer, saved_dir, val_every, batch_size, device):
 
         self.num_epochs = num_epochs
         self.model = model
@@ -17,6 +19,7 @@ class Trainer(object):
         self.optimizer = optimizer
         self.saved_dir = saved_dir
         self.val_every = val_every
+        self.batch_size = batch_size
         self.device = device
 
         self.n_class = 11
@@ -84,6 +87,8 @@ class Trainer(object):
                             metrics + [''] * 5 
                         log = map(str,log)
                         f.write(','.join(log) + '\n')
+
+                    wandb.log({"Train Epoch":epoch+1,"Train Loss":round(loss.item(),4), 'Train mIoU': round(mIoU,4)})
             if self.val_every != 0:
                 if (epoch + 1) % self.val_every == 0:
                     avrg_loss, avrg_mIoU = self._validation(epoch + 1, model)
@@ -111,7 +116,7 @@ class Trainer(object):
         with torch.no_grad():
             total_loss = 0
             cnt = 0
-
+            mask_list = []
             hist = np.zeros((self.n_class, self.n_class))
             for step, (images, masks, _) in enumerate(self.val_loader):
 
@@ -130,6 +135,14 @@ class Trainer(object):
                 outputs = torch.argmax(outputs, dim=1).detach().cpu().numpy()
                 masks = masks.detach().cpu().numpy()
 
+                #wandb image save
+                if epoch%5 == 0 and step < 2:
+                    
+                    images= images.detach().cpu().numpy().transpose([0,2,3,1])
+                    for i in range(self.batch_size):
+                        
+                        mask_list.append(wb_mask(images[i,:,:,:], outputs[i,:,:], masks[i,:,:], category_names))
+
                 hist = add_hist(hist, masks, outputs, n_class=self.n_class)
 
             acc, acc_cls, mIoU, fwavacc, IoU = label_accuracy_score(hist)
@@ -141,6 +154,14 @@ class Trainer(object):
             print(f'Validation #{epoch}  Average Loss: {round(avrg_loss.item(), 4)}, Accuracy : {round(acc, 4)}, \
                     mIoU: {round(mIoU, 4)}')
             print(f'IoU by class : {IoU_by_class}')
+
+            category_dict = {}
+            for cl in IoU_by_class:
+                category_dict.update(cl)
+                
+            wandb.log({"Category_IoU/": category_dict}) 
+            wandb.log({"Validation_epoch":epoch, "Average Loss":round(avrg_loss.item(), 4), "Validation Accuracy" : round(acc, 4), 'Validation mIoU': round(mIoU,4)})
+            wandb.log({"Examples":mask_list})
             with open(osp.join(self.saved_dir, 'log.csv'),'a') as f:
                 log = [epoch, 'Val'] + [''] * 5 + \
                     [round(avrg_loss.item(),4)] + metrics 

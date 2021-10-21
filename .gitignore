@@ -188,3 +188,4 @@ input/
 saved/
 configs/
 augmentation/
+.wandb

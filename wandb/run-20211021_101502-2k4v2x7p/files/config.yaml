@@ -1,0 +1,97 @@
+wandb_version: 1
+
+_allow_no_value:
+  desc: null
+  value: false
+_comment_prefixes:
+  desc: null
+  value:
+  - '#'
+  - ;
+_converters:
+  desc: null
+  value: <configparser.ConverterMapping object at 0x7feaf8750750>
+_defaults:
+  desc: null
+  value: {}
+_delimiters:
+  desc: null
+  value:
+  - '='
+  - ':'
+_dict:
+  desc: null
+  value: collections.OrderedDict
+_empty_lines_in_values:
+  desc: null
+  value: true
+_inline_comment_prefixes:
+  desc: null
+  value: []
+_interpolation:
+  desc: null
+  value: <configparser.BasicInterpolation object at 0x7feae3cb9710>
+_optcre:
+  desc: null
+  value: 're.compile(''\n        (?P<option>.*?)                    # very permissive!\n        \\s*(?P<vi>=|:)\\s*              #
+    any number of space/tab,\n                                           # followed
+    by any of t, re.VERBOSE)'
+_proxies:
+  desc: null
+  value:
+    DEFAULT: '<Section: DEFAULT>'
+    hyper_params: '<Section: hyper_params>'
+    model: '<Section: model>'
+    path: '<Section: path>'
+    wandb: '<Section: wandb>'
+_sections:
+  desc: null
+  value:
+    hyper_params:
+      batch_size: '6'
+      learning_rate: '0.0001'
+      momentum: '0.9'
+      num_epochs: '40'
+      num_workers: '4'
+      optimizer: adam
+      preprocessing: 'True'
+      random_seed: '21'
+      val_every: '1'
+      weight_decay: 1e-6
+    model:
+      architecture: DeepLabV3Plus
+      encoder_name: efficientnet-b7
+      encoder_weight: imagenet
+    path:
+      dataset_path: ./input/data
+      saved_dir: ./saved/exp
+    wandb:
+      name: baseline
+      project: Augmentation_seg
+_strict:
+  desc: null
+  value: true
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.12.4
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.7.11
+    start_time: 1634811303
+    t:
+      1:
+      - 1
+      2:
+      - 1
+      3:
+      - 13
+      - 16
+      4: 3.7.11
+      5: 0.12.4
+      8:
+      - 5
+default_section:
+  desc: null
+  value: DEFAULT
