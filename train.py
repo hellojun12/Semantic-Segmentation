@@ -50,9 +50,6 @@ def main(config):
     wandb_project = config.get('wandb', 'project')
     wandb_name = config.get('wandb', 'name')
 
-    #wandb init
-    wandb.init(entity="carry-van", project=wandb_project, name=wandb_name, config=config)
-
     torch.manual_seed(random_seed)
     torch.cuda.manual_seed(random_seed)
     torch.cuda.manual_seed_all(random_seed) # if use multi-GPU
@@ -93,6 +90,7 @@ def main(config):
                                          )
 
     architecture = config.get('model','architecture')
+   
     model = getattr(import_module("segmentation_models_pytorch"),architecture) 
 
     model = model(
@@ -111,6 +109,14 @@ def main(config):
     # optimizer = optimizer(params = model.parameters(), lr = learning_rate, weight_decay=weight_decay)
     
     trainer = Trainer(num_epochs, model, train_loader, val_loader, criterion, optimizer, saved_dir, val_every, batch_size, device)
+
+    #wandb init
+    wandb.init(entity="carry-van", project=wandb_project, name=wandb_name, config={
+        "device":device, "batch_size":batch_size,"num_epochs":num_epochs, "learnig_rate":learning_rate, "preprocessing":preprocessing})
+    wandb.config.encoder_name = encoder_name
+    wandb.config.encoder_weight = encoder_weight
+    wandb.config.architecture = architecture
+
     trainer.train()
 
 
